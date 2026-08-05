@@ -2,6 +2,7 @@
 using WebAPICourse.Repositories;
 using WebAPICourse.Services;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace WebAPICourse.Services
 {
@@ -15,35 +16,42 @@ namespace WebAPICourse.Services
             _repository = repository;
         }
 
-        public async Task<IEnumerable<Product>> GetAllProductsAsync()
+        public async Task<IEnumerable<ProductResponseDto>> GetAllProductsAsync()
         {
-            return await _repository.GetAllAsync();
+            var products = await _repository.GetAllAsync();
+            return products.Select(MapToDto);
         }
 
-        public async Task<Product?> GetProductByIdAsync(int id)
+        public async Task<ProductResponseDto?> GetProductByIdAsync(int id)
         {
-            return await _repository.GetByIdAsync(id);
+            var product = await _repository.GetByIdAsync(id);
+            return product is null ? null : MapToDto(product);
         }
 
-        public async Task<ServiceResult<Product>> CreateProductAsync(Product product)
+        public async Task<ServiceResult<ProductResponseDto>> CreateProductAsync(Product product)
         {
             if (string.IsNullOrWhiteSpace(product.Name))
             {
-                return ServiceResult<Product>.Fail("Product name is required.");
+                return ServiceResult<ProductResponseDto>.Fail("Product name is required.");
             }
 
             if (product.Price <= 0)
             {
-                return ServiceResult<Product>.Fail("Product price must be greater than zero.");
+                return ServiceResult<ProductResponseDto>.Fail("Product price must be greater than zero.");
             }
 
             if (product.StockQuantity < 0)
             {
-                return ServiceResult<Product>.Fail("Stock quantity cannot be negative.");
+                return ServiceResult<ProductResponseDto>.Fail("Stock quantity cannot be negative.");
             }
 
             var created = await _repository.CreateAsync(product);
-            return ServiceResult<Product>.Ok(created);
+
+            // Re-fetch with the Category included so the returned DTO has CategoryName
+            // populated, instead of relying on the (possibly not-loaded) navigation
+            // property on the just-created entity.
+            var withCategory = await _repository.GetByIdAsync(created.Id);
+            return ServiceResult<ProductResponseDto>.Ok(MapToDto(withCategory!));
         }
 
         public async Task<ServiceResult<bool>> UpdateProductAsync(int id, Product product)
@@ -69,6 +77,23 @@ namespace WebAPICourse.Services
         public async Task<bool> DeleteProductAsync(int id)
         {
             return await _repository.DeleteAsync(id);
+        }
+
+        // Maps a Product entity (with its Category navigation property loaded) to the
+        // flattened ProductResponseDto shape returned by the API. Centralizing the
+        // mapping here means every method that returns products stays consistent.
+        private static ProductResponseDto MapToDto(Product product)
+        {
+            return new ProductResponseDto
+            {
+                Id = product.Id,
+                Name = product.Name,
+                Description = product.Description,
+                Price = product.Price,
+                StockQuantity = product.StockQuantity,
+                CategoryId = product.CategoryId,
+                CategoryName = product.Category?.Name ?? string.Empty
+            };
         }
 
     }

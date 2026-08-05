@@ -36,6 +36,18 @@ namespace WebAPICourse.Models
         public decimal Price { get; set; }
 
         public int StockQuantity { get; set; }
+
+        // Foreign key property: every Product must belong to exactly one Category.
+        // By convention, EF Core recognizes "CategoryId" as the FK for the Category
+        // navigation property below. It's also configured explicitly via Fluent API
+        // in AppDbContext.OnModelCreating.
+        [Required]
+        public int CategoryId { get; set; }
+
+        // Navigation property: lets you write product.Category.Name instead of a
+        // separate lookup query. This is null until explicitly loaded, e.g. via
+        // .Include(p => p.Category) in the repository.
+        public Category? Category { get; set; }
     }
 
 }

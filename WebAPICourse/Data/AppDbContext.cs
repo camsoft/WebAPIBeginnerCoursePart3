@@ -20,6 +20,9 @@ namespace WebAPICourse.Data
         // "Products" table by convention (pluralized class name).
         public DbSet<Product> Products => Set<Product>();
 
+        // A second table for our new Category entity.
+        public DbSet<Category> Categories => Set<Category>();
+
         // OnModelCreating lets us fine-tune how EF Core maps our classes to database tables.
         // This is also where we can provide "seed data" - rows that should always exist
         // whenever the database is created via a migration.
@@ -44,14 +47,44 @@ namespace WebAPICourse.Data
                 entity.Property(p => p.Price).HasColumnType("decimal(10,2)");
             });
 
+            // Configure the Category entity/table.
+            modelBuilder.Entity<Category>(entity =>
+            {
+                entity.ToTable("Categories");
+                entity.HasKey(c => c.Id);
+                entity.Property(c => c.Name).IsRequired().HasMaxLength(100);
+                entity.Property(c => c.Description).HasMaxLength(500);
+            });
+
+            // Configure the one-to-many relationship: a Category has many Products,
+            // and each Product belongs to exactly one Category (required FK).
+            //
+            // OnDelete(DeleteBehavior.Restrict) prevents deleting a Category while it
+            // still has Products pointing at it - the database will reject the delete
+            // instead of silently cascading and removing all its Products too.
+            modelBuilder.Entity<Product>()
+                .HasOne(p => p.Category)
+                .WithMany(c => c.Products)
+                .HasForeignKey(p => p.CategoryId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Seed data for Categories - inserted before Products so the FK values
+            // referenced below (CategoryId) are valid.
+            modelBuilder.Entity<Category>().HasData(
+                new Category { Id = 1, Name = "Peripherals", Description = "Input devices such as mice and keyboards" },
+                new Category { Id = 2, Name = "Accessories", Description = "Add-ons and connectivity accessories" },
+                new Category { Id = 3, Name = "Storage", Description = "Devices for storing and transferring data" }
+            );
+
             // Seed data: these rows will be inserted automatically when the "InitialCreate"
             // migration is applied. This mirrors the SQL scripts in the SqlScripts folder,
             // so whether you use EF Migrations or run the .sql scripts manually, you end up
             // with the same starting data.
             modelBuilder.Entity<Product>().HasData(
-                new Product { Id = 1, Name = "Wireless Mouse", Description = "Ergonomic wireless mouse", Price = 24.99m, StockQuantity = 150 },
-                new Product { Id = 2, Name = "Mechanical Keyboard", Description = "RGB backlit mechanical keyboard", Price = 89.99m, StockQuantity = 75 },
-                new Product { Id = 3, Name = "USB-C Hub", Description = "7-in-1 USB-C hub", Price = 39.99m, StockQuantity = 200 }
+                new Product { Id = 1, Name = "Wireless Mouse", Description = "Ergonomic wireless mouse", Price = 24.99m, StockQuantity = 150, CategoryId = 1 },
+                new Product { Id = 2, Name = "Mechanical Keyboard", Description = "RGB backlit mechanical keyboard", Price = 89.99m, StockQuantity = 75, CategoryId = 1 },
+                new Product { Id = 3, Name = "USB-C Hub", Description = "7-in-1 USB-C hub", Price = 39.99m, StockQuantity = 200, CategoryId = 2 }
             );
         }
     }

@@ -23,6 +23,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // which is itself Scoped. A Singleton service cannot safely depend on a Scoped service.
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 
 var app = builder.Build();

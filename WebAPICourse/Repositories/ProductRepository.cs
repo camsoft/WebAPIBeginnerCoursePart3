@@ -27,14 +27,23 @@ namespace WebAPICourse.Repositories
         {
             // ToListAsync() executes the query against the database asynchronously
             // and materializes the results into a List<Product>.
-            return await _context.Products.ToListAsync();
+            //
+            // .Include(p => p.Category) tells EF Core to eager-load the related
+            // Category in the same query (via a SQL JOIN), instead of leaving the
+            // Category navigation property null. Without this, Category would only
+            // be populated if it happened to already be tracked in memory.
+            return await _context.Products
+                .Include(p => p.Category)
+                .ToListAsync();
         }
 
         public async Task<Product?> GetByIdAsync(int id)
         {
-            // FindAsync looks up an entity by its primary key. EF Core will first check
-            // if the entity is already being tracked in memory before hitting the database.
-            return await _context.Products.FindAsync(id);
+            // FindAsync can't be combined with Include, so we use FirstOrDefaultAsync
+            // here instead to eager-load the related Category.
+            return await _context.Products
+                .Include(p => p.Category)
+                .FirstOrDefaultAsync(p => p.Id == id);
         }
 
         public async Task<Product> CreateAsync(Product product)
@@ -62,6 +71,7 @@ namespace WebAPICourse.Repositories
             existing.Description = product.Description;
             existing.Price = product.Price;
             existing.StockQuantity = product.StockQuantity;
+            existing.CategoryId = product.CategoryId;
 
             await _context.SaveChangesAsync();
             return true;
